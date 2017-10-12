@@ -55,17 +55,20 @@ template<typename TagT, Part SIZE>
 class MapT;
 
 template<typename TagT, Part SIZE>
-std::shared_ptr<MapT<TagT, SIZE>> InsertChar(char c, TagT tag);
+using MapTPtr = std::shared_ptr<MapT<TagT,SIZE>>;
+
+template<typename TagT, Part SIZE>
+MapTPtr<TagT, SIZE> InsertChar(MapTPtr<TagT, SIZE> ptr,char c, TagT tag);
 
 template<typename TagT>
-std::shared_ptr<MapT<TagT, Part::Full>> InsertChar(std::shared_ptr<MapT<TagT, Part::Full>> ptr, char c, TagT tag)
+auto InsertChar(MapTPtr<TagT, Part::Full> ptr, char c, TagT tag)
 {
-    using Ptr_t = std::shared_ptr<MapT<TagT, Part::Full>>;
-
     Bits<Part::Full> bits{c};
-    Ptr_t p;
+    uint8_t index = bits.m_p1;
+    auto result = std::make_shared<MapTPtr<TagT, Part::Full>>();
+    ptr->m_map[index] = result;
 
-    return ptr;
+    return result;
 }
 
 template<typename TagT, Part SIZE>
@@ -74,11 +77,13 @@ class MapT : public std::enable_shared_from_this<MapT<TagT, SIZE>>
     using Self_t = MapT<TagT, SIZE>;
     using Ptr_t = std::shared_ptr<Self_t>;
 
+    friend Ptr_t trie::InsertChar<TagT, SIZE>(Ptr_t ptr, char c, TagT);
+
     Ptr_t m_map[static_cast<size_t>(SIZE)];
     TagT m_tag{TagT::Unknown};
 
     Ptr_t InsertChar(char c, TagT tag)
-    {
+    {/*
         size_t index = static_cast<size_t>(c);
 
         if(!m_map[index])
@@ -95,7 +100,10 @@ class MapT : public std::enable_shared_from_this<MapT<TagT, SIZE>>
                 throw "Rewrithing tag.";
         }
 
-        return m_map[index];
+        return m_map[index];*/
+        Ptr_t ptr(this);
+
+        return ptr;
     }
 
 public:
@@ -107,9 +115,9 @@ public:
         for(size_t n = 0; n < size ; n++)
         {
             if(n == size-1)
-                ptr->InsertChar(str[n], tag);
+                trie::InsertChar<TagT, SIZE>(ptr, str[n], tag);
             else
-                ptr = ptr->InsertChar(str[n], TagT::Unknown);
+                ptr = trie::InsertChar<TagT, SIZE>(ptr, str[n], TagT::Unknown);
         }
     }
 };
