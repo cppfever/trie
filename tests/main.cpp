@@ -4,8 +4,8 @@
 
 int main()
 {
-    trie::MapT<trie::DefaultTag, trie::Part::Full> map;
-    map.Insert("class",5,trie::DefaultTag::Unknown);
+    trie::MapT<trie::TestTag, trie::MapSize::Full> map;
+    map.Insert("class",5,trie::TestTag::Unknown);
 
     std::cout << "Hellow dude)" << std::endl;
 

@@ -6,12 +6,13 @@
 namespace trie
 {
 
-enum DefaultTag
+enum TestTag
 {
     Unknown
 };
 
-enum class Part : size_t
+
+enum class MapSize
 {
     Full = 256,
     Half = 16,
@@ -20,21 +21,37 @@ enum class Part : size_t
 };
 
 
-template<trie::Part PART>
-struct Bits;
+template<typename TagT, MapSize SIZE>
+class MapT;
+
+
+template<typename TagT, MapSize SIZE>
+using MapTPtr = std::shared_ptr<MapT<TagT,SIZE>>;
+
+
+template<MapSize PART>
+struct Indexer;
 
 
 template<>
-struct Bits<Part::Full>
+struct Indexer<MapSize::Full>
 {
     union
     {
         char m_char;
-        uint8_t m_p1;
+        uint8_t m_index;
     };
+
+    template<typename TagT>
+    MapTPtr<TagT, MapSize::Full> InsertChar(MapTPtr<TagT, MapSize::Full> ptr, char c, TagT tag)
+    {
+        Indexer<MapSize::Full> bits{c};
+        return ptr->InsertIndex(bits.m_index, tag);
+    }
+
 };
 
-
+/*
 template<>
 struct Bits<Part::Half>
 {
@@ -49,45 +66,24 @@ struct Bits<Part::Half>
         };
     };
 };
+*/
 
-
-template<typename TagT, Part SIZE>
-class MapT;
-
-template<typename TagT, Part SIZE>
-using MapTPtr = std::shared_ptr<MapT<TagT,SIZE>>;
-
-template<typename TagT, Part SIZE>
-MapTPtr<TagT, SIZE> InsertChar(MapTPtr<TagT, SIZE> ptr,char c, TagT tag);
-
-template<typename TagT>
-auto InsertChar(MapTPtr<TagT, Part::Full> ptr, char c, TagT tag)
-{
-    Bits<Part::Full> bits{c};
-    uint8_t index = bits.m_p1;
-    auto result = std::make_shared<MapTPtr<TagT, Part::Full>>();
-    ptr->m_map[index] = result;
-
-    return result;
-}
-
-template<typename TagT, Part SIZE>
+template<typename TagT, MapSize SIZE>
 class MapT : public std::enable_shared_from_this<MapT<TagT, SIZE>>
 {
     using Self_t = MapT<TagT, SIZE>;
-    using Ptr_t = std::shared_ptr<Self_t>;
+    using Ptr_t = MapTPtr<TagT, SIZE>;
 
-    friend Ptr_t trie::InsertChar<TagT, SIZE>(Ptr_t ptr, char c, TagT);
+    friend struct Indexer<SIZE>;
 
-    Ptr_t m_map[static_cast<size_t>(SIZE)];
+    MapTPtr<TagT, SIZE> m_map[static_cast<size_t>(SIZE)];
     TagT m_tag{TagT::Unknown};
 
-    Ptr_t InsertChar(char c, TagT tag)
-    {/*
-        size_t index = static_cast<size_t>(c);
 
+    Ptr_t InsertIndex(uint8_t index, TagT tag)
+    {
         if(!m_map[index])
-            m_map[index] = trie::InsertChar(this, c, tag);//std::make_shared<Self_t>();
+            m_map[index] = std::make_shared<Self_t>();
 
         if(m_map[index]->m_tag == TagT::Unknown)
         {
@@ -100,10 +96,7 @@ class MapT : public std::enable_shared_from_this<MapT<TagT, SIZE>>
                 throw "Rewrithing tag.";
         }
 
-        return m_map[index];*/
-        Ptr_t ptr(this);
-
-        return ptr;
+        return m_map[index];
     }
 
 public:
@@ -114,10 +107,12 @@ public:
 
         for(size_t n = 0; n < size ; n++)
         {
+            Indexer<SIZE> bits;
+
             if(n == size-1)
-                trie::InsertChar<TagT, SIZE>(ptr, str[n], tag);
+                ptr = bits.InsertChar(ptr, str[n], tag);
             else
-                ptr = trie::InsertChar<TagT, SIZE>(ptr, str[n], TagT::Unknown);
+                ptr = bits.InsertChar(ptr, str[n], TagT::Unknown);
         }
     }
 };
