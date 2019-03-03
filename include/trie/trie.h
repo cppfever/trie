@@ -57,7 +57,7 @@ private:
 };//struct LexerData
 
 
-enum class MapSize
+enum class MapSize : size_t
 {
     Full = 256,
     Half = 16,
@@ -66,28 +66,30 @@ enum class MapSize
 };//enum class MapSize
 
 
-template<typename DATA, size_t SIZE>
+template<typename DATA, MapSize SIZE>
 class Map;
 
 
-template<size_t SIZE>
+template<MapSize SIZE>
 struct Indexer;
 
 template<>
-struct Indexer<256>
+struct Indexer<MapSize::Full>
 {
-    static const size_t SIZE = 256;
-
-    union
-    {
-        char m_char;
-        uint8_t m_index;
-    };
+    template<typename DATA>
+    using Map_t = Map<DATA, MapSize::Full>;
 
     template<typename DATA>
-    Map<DATA, SIZE>* InsertChar(Map<DATA, SIZE>* ptr, const DATA& data)
+    Map_t<DATA>* InsertChar(char _c, Map_t<DATA>* ptr, const DATA& data)
     {
-        return ptr->InsertIndex(m_index, data);
+        union
+        {
+            char c;
+            uint8_t index;
+        };
+
+        c = _c;
+        return ptr->InsertIndex(index, data);
     }
 
 };//struct Indexer;
@@ -110,7 +112,7 @@ struct Bits<Part::Half>
 */
 
 
-template<typename DATA, size_t SIZE>
+template<typename DATA, MapSize SIZE>
 class Map
 {
 public:
@@ -124,7 +126,7 @@ public:
 
     Map(Map_p parent, size_t index, const DATA& data) : m_parent(parent),m_index(index)
     {
-        if(!data.IsEmpty())
+        if(m_parent && !data.IsEmpty())
             m_data.push_back(data);
     }
 
@@ -141,12 +143,12 @@ public:
 
         for(size_t n = 0; n < size ; n++)
         {
-            Indexer<SIZE> indexer {str[n]};//Static dispatcher
+            Indexer<SIZE> indexer;//Static dispatcher
 
             if(n == size-1)
-                ptr = indexer.InsertChar(ptr, data);//Last character
+                ptr = indexer.InsertChar(str[n], ptr, data);//Last character
             else
-                ptr = indexer.InsertChar(ptr, DATA());//Insert empty data
+                ptr = indexer.InsertChar(str[n], ptr, DATA());//Insert empty data
         }
     }
 
@@ -159,8 +161,11 @@ public:
     {
         for(Map_p map : m_map)
         {
-            map->Clear();
-            delete map;
+            if(map)
+            {
+                map->Clear();
+                delete map;
+            }
         }
     }
 
@@ -174,10 +179,12 @@ private:
         return m_map[index];
     }
 
+
     Map_p m_parent;
     size_t m_index;
-    Map_p m_map[SIZE];
+    Map_p m_map[static_cast<size_t>(SIZE)] = {0};
     std::vector<DATA> m_data;
 };
+
 
 }//namespace trie
